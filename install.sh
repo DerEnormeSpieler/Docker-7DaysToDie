@@ -1,11 +1,20 @@
 #!/bin/bash
-rootDir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+rootDir=$(dirname "$(readlink -f \"${BASH_SOURCE[0]}\")")
 scriptsDir="${rootDir}/scripts"
 
-# Show log function
+# Show log and monitor server function
 show_log () {
-   # -F = --follow=name --retry
-   tail -F /home/sdtdserver/log/console/sdtdserver-console.log
+   logfile="/home/sdtdserver/log/console/sdtdserver-console.log"
+   tail -F "$logfile" &
+   TAIL_PID=$!
+
+   # Check every 5 seconds if server process is still running
+   while pgrep -f "7DaysToDieServe" > /dev/null; do
+      sleep 5
+   done
+
+   echo "Server stopped. Exiting log."
+   kill "$TAIL_PID"
 }
 
 test_alert () {
@@ -14,12 +23,12 @@ test_alert () {
    fi
 }
 
-# Check if server have been installed, if missing file
+# Check if server has been installed, if missing file
 if [ ! -f serverfiles/DONT_REMOVE.txt ]; then
    source "$scriptsDir/first_install.sh"
 fi
 
-# This will install or update mods at start but not on first install
+# Install or update mods at start, but not on first install
 if [ "${UPDATE_MODS,,}" == 'yes'  ] && [ ! -f serverfiles/MOD_BLOCK.txt ]; then
    source "$scriptsDir/Mods/mods_update.sh"
 fi
@@ -31,7 +40,7 @@ fi
 
 source "$scriptsDir/utils/crontab.sh"
 
-# Use of case to avoid errors if used wrong START_MODE
+# Use case to handle START_MODE correctly
 case $START_MODE in
    0)
       exit
